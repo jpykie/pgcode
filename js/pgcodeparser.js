@@ -813,7 +813,8 @@ function PrintHeadSimulator()
         //todo. Find a better way to pass the apiKey
         if(!apiKey)
             apiKey=''
-
+		
+		var thisObject = this;
         var myRequest = new Request(file_url,
             {
                 method: 'GET',
@@ -840,6 +841,8 @@ function PrintHeadSimulator()
                     var received = 0;
                     myReader.read().then(function processResult(result) {
                         if (result.done) {
+							if(thisObject.finished)
+								thisObject.finished();
                             finishLoading();
                             //syncGcodeObjTo(Infinity);
                             //console.log("PrintSimBufferSize:"+buffer.length)

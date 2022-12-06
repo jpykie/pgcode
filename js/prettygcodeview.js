@@ -69,6 +69,7 @@ $(function () {
         if(searchParams.has('embedded')){
             $(".pgconnection").hide();
             $("#pgclogo").hide();
+			$(".pgfiles").hide();
         }
         $('#layer-slider').on('mousedown', function (e) {
             forceNoSync=true
@@ -341,9 +342,9 @@ $(function () {
                 
 				
 				gui.add(pgSettings, 'font', ["Ariel", "Brush Script", "Courier New", "Helvetica", "Times", "Verdana"]).onFinishChange(function(){
-					InitFont();
+					initFont();
                 });;
-				InitFont();
+				initFont();
 
                 var folder = gui.addFolder('Windows');//hidden.
                 // folder.add(pgSettings, 'showState').onFinishChange(updateWindowStates).listen();
@@ -361,13 +362,63 @@ $(function () {
             } 
         }
 
-		function InitFont()
+		function initFont()
 		{
 			var font = pgSettings.font === "Brush Script" ? "'Brush Script MT', cursive" : pgSettings.font;
 			$('.pgLogo').css({"font-family" : font});
 			$('.pgclabel').css({"font-family" : font});
 		}
 
+		function addOrRemoveClass(item, className, add)
+		{
+			if (add)
+			{
+				if(!item.hasClass(className))
+					item.addClass(className); 
+			}
+			else
+			{
+			  if(item.hasClass(className))
+				item.removeClass(className); 
+			}
+		}
+		
+		function updateState(newState)
+		{
+			//todo. maybe put these two in animate()
+			//curPrinterState=newState.state;
+			//curPrintFilePos=newState.filePos;
+			addOrRemoveClass($(".pgconnection"), "connected", newState.connected);
+			addOrRemoveClass($(".pgfiles"), "pghidden", !newState.connected);
+			
+			$("#status-state").html(newState.state)
+			$("#status-elapsed").html(new Date(newState.printTime * 1000).toISOString().substr(11, 8))
+			$("#status-done").html(newState.perDone.toString()+"%")
+			if(newState.printTimeLeft && Number.isFinite(newState.printTimeLeft))
+				$("#status-eta").html(new Date(newState.printTimeLeft * 1000).toISOString().substr(11, 8))
+
+			//todo. find another place for this?
+			if(gcodeProxy)
+				$("#status-layer").html(currentCalculatedLayer.toString()+"/"+gcodeProxy.getLayerCount())
+
+			if(curGcodePath!=newState.gcodePath && newState.gcodeName!="")
+			{
+				curGcodePath=newState.gcodePath;
+				let info=printerConnection.getConnectionInfo();
+				updateJob(newState.gcodePath,info.apiKey)
+				$("#status-name").html(newState.gcodeName)
+			}
+
+			if(newState.gcodeName && newState.gcodeName!="")
+				$("#status-name").html(newState.gcodeName)
+			else
+				$("#status-name").html("Nothing loaded")
+
+
+			//let lDelta=printHeadSim.getDeltaTo(newState.filePos).toString();
+			//console.log(["Behind ",lDelta])
+		}
+		
         self.initScene = function () {
             if (!viewInitialized) {
                 viewInitialized = true;
@@ -377,46 +428,13 @@ $(function () {
                 initGui()
 
                 printerConnection=new PrinterConnection()
+				var override=false;
+				
                 printerConnection.onUpdateState=function(newState)
                 {
-                    //todo. maybe put these two in animate()
-                    //curPrinterState=newState.state;
-                    //curPrintFilePos=newState.filePos;
-
-                    if(newState.connected){
-                        if(!$(".pgconnection").hasClass("connected"))
-                            $(".pgconnection").addClass("connected")
-                    }else{
-                        if($(".pgconnection").hasClass("connected"))
-                            $(".pgconnection").removeClass("connected")                        
-                    }
-					
-                    $("#status-state").html(newState.state)
-                    $("#status-elapsed").html(new Date(newState.printTime * 1000).toISOString().substr(11, 8))
-                    $("#status-done").html(newState.perDone.toString()+"%")
-                    if(newState.printTimeLeft && Number.isFinite(newState.printTimeLeft))
-                        $("#status-eta").html(new Date(newState.printTimeLeft * 1000).toISOString().substr(11, 8))
-
-                    //todo. find another place for this?
-                    if(gcodeProxy)
-                        $("#status-layer").html(currentCalculatedLayer.toString()+"/"+gcodeProxy.getLayerCount())
-    
-                    if(curGcodePath!=newState.gcodePath && newState.gcodeName!="")
-                    {
-                        curGcodePath=newState.gcodePath;
-                        let info=printerConnection.getConnectionInfo();
-                        updateJob(newState.gcodePath,info.apiKey)
-                        $("#status-name").html(newState.gcodeName)
-                    }
-
-                    if(newState.gcodeName && newState.gcodeName!="")
-                        $("#status-name").html(newState.gcodeName)
-                    else
-                        $("#status-name").html("Nothing loaded")
-
-
-                    //let lDelta=printHeadSim.getDeltaTo(newState.filePos).toString();
-                    //console.log(["Behind ",lDelta])
+					if (override)
+						return;
+                    updateState(newState);
                 }
 
                 if(true){
@@ -444,6 +462,33 @@ $(function () {
                     }
                     if(searchParams.has('apiKey'))
                         pgcApiKey=searchParams.get("apiKey")
+
+					$(".pgfiles>select").on("change", function(){
+						override = $(this).val() !== 'Loaded GCode';
+						updateState({
+							gcodePath : pgcServer + '/server/files/gcodes/' + $(this).val(),
+							gcodeName : $(this).val(),
+							printTime : 0,
+							perDone : 0,
+							connected : true,
+							state : ''
+						});
+						$("#status-layer").html('');
+						$("#status-elapsed").html('');
+						$("#status-done").html('');
+						$("#status-eta").html('');
+					});
+					
+					printerConnection.onLoadedGCodes=function(gcodes)
+					{   
+						$(".pgfiles>select").append("<option>Loaded GCode</option>");
+						if (gcodes)
+						{ 
+							for (var i = 0; i < gcodes.length; i++)
+								$(".pgfiles>select").append("<option>" + gcodes[i].path + "</option>");
+						}
+					};
+
 
                     if(pgcServer && pgcAutoConnect){
                         //printerConnection.connectToOctoprint(pgcServer,pgcApiKey)
@@ -1186,6 +1231,12 @@ $(function () {
                         var gcodeObject = gcodeProxy.getObject();
                         gcodeObject.position.set(-0, -0, 0);
                         scene.add(gcodeObject);
+						
+						printHeadSim.finished = function(){ 
+							forceNoSync = true;
+							$('#layer-slider')[0].value = printHeadSim.getGcodeObject().getLayerCount();
+							forceNoSync = false;
+						};
 
                         printHeadSim.loadGcode(curJobName,apiKey);
 

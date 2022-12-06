@@ -415,9 +415,8 @@ function PrinterConnection()
     {
         //this.moonrakerLogin(serverUrl).then(result=>alert(result))
         currentServerUrl=serverUrl;
-
-
         currentApiKey=apiKey;
+		var myInstance = this;
 
         this.getOneShotToken(serverUrl,apiKey).then(result=>{
 
@@ -493,6 +492,8 @@ function PrinterConnection()
                                 }                                
                             }
                         }else{
+							if(msg.id===5434)
+								myInstance.onLoadedGCodes(msg.result);
                             //console.log("Result with no status:")
 
                             //handle reply to "server.files.list" here.
@@ -501,8 +502,9 @@ function PrinterConnection()
                         }
                     }
                     if(msg.method)
-                    { 
+                    {
                         handled=true;
+						
                         switch (msg.method)
                         {
                             case "notify_proc_stat_update"://moonraker stats

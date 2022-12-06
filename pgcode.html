@@ -1,6 +1,17 @@
 <body>
    
     <style>
+		.pgfiles {
+			top: 28px;
+            right: 110px;
+            position: absolute;
+            z-index:10;
+			color:white;
+        }
+		.pgfiles > select {
+			min-width:150px;
+			font-size:14px;
+        }
         .pgsettingstoggle {
             top: 20px;
             right: 35px;
@@ -36,10 +47,10 @@
         { 
             position:absolute;
             right:35px;
-            top:20px;
+            top:50px;
             z-index:5;
             box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(190, 186, 186, 0.19);
-            z-index:4;
+            z-index:30;
             background: rgba(255, 255, 255, 1.0);
             opacity: 0.8;
 
@@ -148,6 +159,12 @@
     </div>
     <button class="pgsettingstoggle" title="Toggle settings window">&#9881</button>
     <button class="pgconnection" title="Show connection info"></button>
+	
+	<div class="pgfiles pghidden">
+		<select>
+		</select>
+	</div>
+	
     <div id='mygui' class='xgwin pghidden'></div>
 
     <div class='pgclabel'>

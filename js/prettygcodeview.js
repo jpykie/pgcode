@@ -76,7 +76,7 @@ $(function () {
 
         });
         $('#layer-slider').on('mouseup', function (e) {
-            forceNoSync=false
+            forceNoSync=!shouldSync();
         });
         $('#layer-slider').on('input', function (e) {
             if(parseInt(e.currentTarget.value))
@@ -419,6 +419,11 @@ $(function () {
 			//console.log(["Behind ",lDelta])
 		}
 		
+		function shouldSync()
+		{
+			 return $(".pgfiles>select").val() === 'Loaded GCode';
+		}
+		
         self.initScene = function () {
             if (!viewInitialized) {
                 viewInitialized = true;
@@ -428,11 +433,10 @@ $(function () {
                 initGui()
 
                 printerConnection=new PrinterConnection()
-				var override=false;
 				
                 printerConnection.onUpdateState=function(newState)
                 {
-					if (override)
+					if (!shouldSync())
 						return;
                     updateState(newState);
                 }
@@ -464,7 +468,7 @@ $(function () {
                         pgcApiKey=searchParams.get("apiKey")
 
 					$(".pgfiles>select").on("change", function(){
-						override = $(this).val() !== 'Loaded GCode';
+						forceNoSync = !shouldSync();
 						updateState({
 							gcodePath : pgcServer + '/server/files/gcodes/' + $(this).val(),
 							gcodeName : $(this).val(),
@@ -1233,9 +1237,7 @@ $(function () {
                         scene.add(gcodeObject);
 						
 						printHeadSim.finished = function(){ 
-							forceNoSync = true;
 							$('#layer-slider')[0].value = printHeadSim.getGcodeObject().getLayerCount();
-							forceNoSync = false;
 						};
 
                         printHeadSim.loadGcode(curJobName,apiKey);
